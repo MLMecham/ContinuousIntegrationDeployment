@@ -1,5 +1,8 @@
+# This workflow runs on every pull request to main/master.
+# It checks code quality and runs tests before anything can merge.
 name: ci
 
+# Trigger: runs whenever a PR is opened or updated targeting main/master
 on:
   pull_request:
     branches:
@@ -7,29 +10,37 @@ on:
       - master
 
 jobs:
+  # ── Job 1: Lint the code ─────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
+      # Pull down the repo code
       - uses: actions/checkout@v4
 
+      # Install uv (our package manager)
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      # Set up the Python version we want
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # Install all dependencies including dev tools
       - name: Install dependencies
         run: uv sync --extra dev
 
+      # Run ruff to catch style and syntax issues before they merge
       - name: Run ruff
         run: uv run ruff check .
 
+  # ── Job 2: Run tests across multiple Python versions ─────────────────────────
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # Matrix build: runs this job once per Python version in parallel
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -40,6 +51,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      # Uses the matrix value so each run gets a different Python version
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -48,6 +60,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
+      # Demo: shows how variables are visible but secrets are masked
+      - name: Show environment variables
+        run: |
+          echo "ENV_NAME is: $ENV_NAME"
+          echo "SOME_SECRET is: $SOME_SECRET"
+        env:
+          ENV_NAME: ${{ vars.ENV_NAME }} # A plain variable (visible in logs)
+          SOME_SECRET: ${{ secrets.SOME_SECRET }} # A secret (masked in logs as ***)
+
+      # Run tests. Each matrix version runs this independently.
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
         env:

@@ -1,44 +1,67 @@
+# This workflow runs on every merge to main/master.
+# It first runs tests, and only deploys docs if tests pass.
 name: cd
 
+# Trigger: runs whenever code is pushed to main or master
 on:
   push:
     branches:
       - main
       - master
 
+# Permissions the workflow needs to write to the repo
+# (required for pushing the built docs to the gh-pages branch)
 permissions:
   contents: write
   pages: write
   id-token: write
 
 jobs:
+  # ── Job 1: Run tests before we deploy anything ──────────────────────────────
   test:
     name: Test before deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Run on a fresh GitHub-hosted Ubuntu machine
     steps:
+      # Pull down the repo code
       - uses: actions/checkout@v4
 
+      # Install uv (our package manager)
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      # Set up the Python version we want
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # Install all dependencies including dev tools (pytest, ruff, mkdocs, etc.)
       - name: Install dependencies
         run: uv sync --extra dev
 
+      # Run the test suite. -v is verbose, --tb=short gives concise failure output.
+      # ENV_NAME and SOME_SECRET are injected from GitHub repo settings,
+      # demonstrating how secrets/variables flow into a workflow at runtime.
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
+        env:
+          ENV_NAME: ${{ vars.ENV_NAME }} # A plain variable (visible in logs)
+          SOME_SECRET: ${{ secrets.SOME_SECRET }} # A secret (masked in logs as ***)
+
+      # Demo: shows how variables are visible but secrets are masked
+      - name: Show environment variables
+        run: |
+          echo "ENV_NAME is: $ENV_NAME"
+          echo "SOME_SECRET is: $SOME_SECRET"
         env:
           ENV_NAME: ${{ vars.ENV_NAME }}
           SOME_SECRET: ${{ secrets.SOME_SECRET }}
 
+  # ── Job 2: Build and deploy MkDocs to GitHub Pages ──────────────────────────
   docs:
     name: Build and deploy docs
     runs-on: ubuntu-latest
-    needs: test
+    needs: test # Only runs if the test job above passes # SUPER IMPORTANT!!!!!
     steps:
       - uses: actions/checkout@v4
 
@@ -53,13 +76,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
+      # Git credentials so the bot can push the built site to gh-pages
       - name: Configure Git credentials
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
+      # Generate a weekly cache key so the MkDocs cache refreshes once a week
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
 
+      # Cache MkDocs build artifacts to speed up future runs
       - uses: actions/cache@v4
         with:
           key: mkdocs-material-${{ env.cache_id }}
@@ -67,6 +93,7 @@ jobs:
           restore-keys: |
             mkdocs-material-
 
+      # Build the docs and force-push them to the gh-pages branch
       - name: Build and deploy MkDocs
         run: uv run mkdocs gh-deploy --force
         env:
