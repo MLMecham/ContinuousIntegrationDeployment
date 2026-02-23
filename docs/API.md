@@ -1,8 +1,7 @@
 # API
 
-::: pypackage_template.template_package.multiply
+::: continuousintegrationdeployment.template_package.multiply
 
+::: continuousintegrationdeployment.add_numbers.add
 
-::: pypackage_template.add_numbers.add
-
-::: pypackage_template.add_numbers
+::: continuousintegrationdeployment.add_numbers
