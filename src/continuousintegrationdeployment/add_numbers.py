@@ -17,6 +17,8 @@ def add(a: float, b: float) -> float:
         5
         >>> add(-1.5, 0.5)
         -1.0
+        >>> add(0, 0)
+        0
     """
     return a + b
 # %%
