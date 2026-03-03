@@ -86,4 +86,4 @@ pypackage_template
     └── test_pycounts.py       ┘ Package tests
 ```
 
-J. Hathaway was here.
+J. Hathaway was here. And he has secrets.
